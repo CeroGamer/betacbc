@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin CBC</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #00ff88;
+            --secondary: #1a1a1a;
+            --accent: #7b2cbf;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(45deg, #0f0f0f, #1a1a1a);
+            color: white;
+            min-height: 100vh;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            opacity: 0;
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid var(--primary);
+            position: relative;
+        }
+
+        .header::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 20%;
+            height: 2px;
+            background: var(--accent);
+            animation: headerLine 2s infinite;
+        }
+
+        @keyframes headerLine {
+            0%, 100% { width: 20%; }
+            50% { width: 100%; }
+        }
+
+        .logo {
+            font-size: 2em;
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            position: relative;
+            text-shadow: 0 0 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .logo::after {
+            content: 'ADMIN';
+            position: absolute;
+            top: -15px;
+            right: -60px;
+            font-size: 0.4em;
+            color: var(--accent);
+            animation: adminPulse 1.5s infinite;
+        }
+
+        @keyframes adminPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .controls {
+            background: var(--glass);
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        input, button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            transition: all 0.3s;
+            font-size: 1em;
+            min-width: 250px;
+        }
+
+        input {
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+            border: 1px solid var(--primary);
+        }
+
+        button {
+            background: linear-gradient(45deg, var(--primary), var(--accent));
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.3);
+        }
+
+        .logout-btn {
+            background: linear-gradient(45deg, #ff4444, #cc0000);
+        }
+
+        .user-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .user-card {
+            background: var(--glass);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+        }
+
+        .user-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .user-id {
+            font-size: 0.8em;
+            color: #888;
+            word-break: break-all;
+            margin: 5px 0;
+        }
+
+        .balance-value {
+            color: var(--primary);
+            font-size: 1.5em;
+            margin: 10px 0;
+        }
+
+        .transaction-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .transaction-item {
+            padding: 10px;
+            margin: 8px 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+        }
+
+        .transaction-item small {
+            color: #888;
+            font-size: 0.7em;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            input, button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">CBC Control</div>
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
+        </div>
+
+        <div class="controls">
+            <h2>Control de Transacciones</h2>
+            <div class="input-group">
+                <input type="text" id="userId" placeholder="ID del Usuario">
+                <input type="number" id="amount" placeholder="Monto CBC">
+                <button onclick="recharge()">
+                    <i class="fas fa-coins"></i> Recargar
+                </button>
+                <button onclick="withdraw()">
+                    <i class="fas fa-wallet"></i> Retirar
+                </button>
+            </div>
+        </div>
+
+        <div class="user-list" id="userList">
+            <!-- Usuarios se cargarán aquí -->
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCEU1qe4M0IA4eq5GNBxHYAIcmT-zmTKh0",
+            authDomain: "cbcoficial.firebaseapp.com",
+            projectId: "cbcoficial",
+            storageBucket: "cbcoficial.firebasestorage.app",
+            messagingSenderId: "895657906770",
+            appId: "1:895657906770:web:331962cc100c1c9a15c58b",
+            measurementId: "G-PNPXPW5XRX"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        auth.onAuthStateChanged(user => {
+            if (!user || user.email !== "orelemcc17@gmail.com") {
+                document.body.style.opacity = '0';
+                setTimeout(() => window.location.href = "index.html", 500);
+            } else {
+                document.body.style.opacity = '1';
+                loadUsers();
+            }
+        });
+
+        function loadUsers() {
+            db.collection("users").onSnapshot(snapshot => {
+                const userList = document.getElementById("userList");
+                userList.innerHTML = "";
+                
+                snapshot.forEach(doc => {
+                    const user = doc.data();
+                    const transactions = user.transactions || [];
+                    
+                    const userCard = document.createElement('div');
+                    userCard.className = 'user-card';
+                    userCard.innerHTML = `
+                        <h3>${user.email}</h3>
+                        <p class="user-id">ID: ${doc.id}</p>
+                        <p class="balance-value">${user.balance || 0} CBC</p>
+                        <div class="transaction-list">
+                            ${transactions.reverse().map(t => `
+                                <div class="transaction-item">
+                                    <p>${t.type} - ${t.amount}CBC</p>
+                                    ${t.admin ? `<small>Por: ${t.admin}</small>` : ''}
+                                </div>
+                            `).join("")}
+                        </div>
+                    `;
+                    userList.appendChild(userCard);
+                });
+            });
+        }
+
+        async function recharge() {
+            const userId = document.getElementById("userId").value;
+            const amount = parseFloat(document.getElementById("amount").value);
+            
+            if (!userId || !amount) return alert("❌ Completa todos los campos");
+            
+            try {
+                await db.collection("users").doc(userId).update({
+                    balance: firebase.firestore.FieldValue.increment(amount),
+                    transactions: firebase.firestore.FieldValue.arrayUnion({
+                        type: "RECARGA",
+                        amount: amount,
+                        admin: "orelemcc17@gmail.com"
+                    })
+                });
+                alert("✅ Recarga exitosa!");
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        async function withdraw() {
+            const userId = document.getElementById("userId").value;
+            const amount = parseFloat(document.getElementById("amount").value);
+            
+            if (!userId || !amount) return alert("❌ Completa todos los campos");
+            
+            try {
+                await db.collection("users").doc(userId).update({
+                    balance: firebase.firestore.FieldValue.increment(-amount),
+                    transactions: firebase.firestore.FieldValue.arrayUnion({
+                        type: "RETIRO",
+                        amount: amount,
+                        admin: "orelemcc17@gmail.com"
+                    })
+                });
+                alert("✅ Retiro exitoso!");
+            } catch (error) {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                document.body.style.opacity = '0';
+                setTimeout(() => window.location.href = "index.html", 500);
+            });
+        }
+    </script>
+</body>
+</html>
